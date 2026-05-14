@@ -1,18 +1,16 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v3: C=1024 F32 index + NPROBE=5.
-# Canonical CPU split (haproxy 0.15 / api 0.40 each, data-prep 0.05).
-# Data image: v2-c1024 (1024 centroids vs 512 in v1).
-# Hypothesis: smaller clusters (~2929 vecs each vs 5859 at C=512) → less work per
-# probe → lower per-query CPU → less queueing on saturated Mac Mini.
-# Risk (local exp12): non-uniform cluster sizes can spike p99; centroid scan is
-# 2x larger (56KB vs 28KB) which spills L1. Local exp12 was worse — but Mac Mini
-# is CPU-bound, not cache-bound, so the trade-off may flip.
+# Variant cpu v4: cluster-purity short-circuit, plain NPROBE=5.
+# Isolates the purity effect — at startup, API computes per-cluster fraud fraction.
+# Queries that land on a "pure" cluster (>=0.95 fraud OR >=0.95 legit) skip the
+# KNN scan and return majority directly. Expected: 30-50% queries short-circuit,
+# halving mean query time.
+# Image: italovinicius18/rinha-2026-api:v3-purity (PURITY_THRESH=0.95).
 # Total budget: haproxy 0.15 + data-prep 0.05 + 2×api 0.40 = 1.00 CPU / 350 MB.
 
 services:
   data-prep:
-    image: italovinicius18/rinha-2026-data-prep:v2-c1024
+    image: italovinicius18/rinha-2026-data-prep:v1
     volumes:
       - index-data:/shared
     deploy:
@@ -22,11 +20,12 @@ services:
           memory: "25MB"
 
   api1:
-    image: italovinicius18/rinha-2026-api:v1
+    image: italovinicius18/rinha-2026-api:v3-purity
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
       NPROBE: "5"
+      PURITY_THRESH: "0.95"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
@@ -42,11 +41,12 @@ services:
           memory: "155MB"
 
   api2:
-    image: italovinicius18/rinha-2026-api:v1
+    image: italovinicius18/rinha-2026-api:v3-purity
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
       NPROBE: "5"
+      PURITY_THRESH: "0.95"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
