@@ -1,20 +1,24 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v2: NPROBE=5 + squeeze data-prep CPU (0.05 → 0.03) to give 0.02
-# extra CPU to API replicas.
-# Data-prep only runs once at startup (copy of 168MB index file). At 0.03 CPU
-# it should still finish in a few seconds.
-# Total budget: haproxy 0.15 + data-prep 0.03 + 2×api 0.41 = 1.00 CPU / 350 MB.
+# Variant cpu v3: C=1024 F32 index + NPROBE=5.
+# Canonical CPU split (haproxy 0.15 / api 0.40 each, data-prep 0.05).
+# Data image: v2-c1024 (1024 centroids vs 512 in v1).
+# Hypothesis: smaller clusters (~2929 vecs each vs 5859 at C=512) → less work per
+# probe → lower per-query CPU → less queueing on saturated Mac Mini.
+# Risk (local exp12): non-uniform cluster sizes can spike p99; centroid scan is
+# 2x larger (56KB vs 28KB) which spills L1. Local exp12 was worse — but Mac Mini
+# is CPU-bound, not cache-bound, so the trade-off may flip.
+# Total budget: haproxy 0.15 + data-prep 0.05 + 2×api 0.40 = 1.00 CPU / 350 MB.
 
 services:
   data-prep:
-    image: italovinicius18/rinha-2026-data-prep:v1
+    image: italovinicius18/rinha-2026-data-prep:v2-c1024
     volumes:
       - index-data:/shared
     deploy:
       resources:
         limits:
-          cpus: "0.03"
+          cpus: "0.05"
           memory: "25MB"
 
   api1:
@@ -34,7 +38,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.41"
+          cpus: "0.40"
           memory: "155MB"
 
   api2:
@@ -54,7 +58,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.41"
+          cpus: "0.40"
           memory: "155MB"
 
   haproxy:
