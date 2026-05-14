@@ -1,7 +1,10 @@
 name: rinha-2026-italo-cpu
 
-# Variant: NPROBE=6 + CPU rebalance toward API.
-# Total budget: haproxy 0.10 + data-prep 0.05 + 2×api 0.425 = 1.00 CPU / 350 MB.
+# Variant cpu v2: NPROBE=5 + squeeze data-prep CPU (0.05 → 0.03) to give 0.02
+# extra CPU to API replicas.
+# Data-prep only runs once at startup (copy of 168MB index file). At 0.03 CPU
+# it should still finish in a few seconds.
+# Total budget: haproxy 0.15 + data-prep 0.03 + 2×api 0.41 = 1.00 CPU / 350 MB.
 
 services:
   data-prep:
@@ -11,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.05"
+          cpus: "0.03"
           memory: "25MB"
 
   api1:
@@ -19,7 +22,7 @@ services:
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
-      NPROBE: "6"
+      NPROBE: "5"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
@@ -31,7 +34,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.425"
+          cpus: "0.41"
           memory: "155MB"
 
   api2:
@@ -39,7 +42,7 @@ services:
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
-      NPROBE: "6"
+      NPROBE: "5"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
@@ -51,7 +54,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.425"
+          cpus: "0.41"
           memory: "155MB"
 
   haproxy:
@@ -65,7 +68,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.10"
+          cpus: "0.15"
           memory: "15MB"
 
 networks:
