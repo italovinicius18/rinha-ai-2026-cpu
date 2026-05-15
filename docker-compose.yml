@@ -1,11 +1,11 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v4: cluster-purity short-circuit, plain NPROBE=5.
-# Isolates the purity effect — at startup, API computes per-cluster fraud fraction.
-# Queries that land on a "pure" cluster (>=0.95 fraud OR >=0.95 legit) skip the
-# KNN scan and return majority directly. Expected: 30-50% queries short-circuit,
-# halving mean query time.
-# Image: italovinicius18/rinha-2026-api:v3-purity (PURITY_THRESH=0.95).
+# Variant cpu v5: Adaptive NPROBE=5 fast + NPROBE_DEEP=6 (minimal deep pass).
+# Probes top-5 + top-6 on borderlines. Hypothesis: even tiny extra recall
+# (1 more cluster searched) is enough to flip borderline ANN approximation.
+# Cheapest deep pass possible — should match Adaptive 5→8 (+5071) at lower
+# CPU cost on saturated Mac Mini. Worth testing as the floor for deep param.
+# Image: italovinicius18/rinha-2026-api:v2-adaptive (NPROBE_DEEP env).
 # Total budget: haproxy 0.15 + data-prep 0.05 + 2×api 0.40 = 1.00 CPU / 350 MB.
 
 services:
@@ -20,12 +20,12 @@ services:
           memory: "25MB"
 
   api1:
-    image: italovinicius18/rinha-2026-api:v3-purity
+    image: italovinicius18/rinha-2026-api:v2-adaptive
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
       NPROBE: "5"
-      PURITY_THRESH: "0.95"
+      NPROBE_DEEP: "6"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
@@ -41,12 +41,12 @@ services:
           memory: "155MB"
 
   api2:
-    image: italovinicius18/rinha-2026-api:v3-purity
+    image: italovinicius18/rinha-2026-api:v2-adaptive
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
       NPROBE: "5"
-      PURITY_THRESH: "0.95"
+      NPROBE_DEEP: "6"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
