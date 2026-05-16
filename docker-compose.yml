@@ -1,16 +1,15 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v5: Adaptive NPROBE=5 fast + NPROBE_DEEP=6 (minimal deep pass).
-# Probes top-5 + top-6 on borderlines. Hypothesis: even tiny extra recall
-# (1 more cluster searched) is enough to flip borderline ANN approximation.
-# Cheapest deep pass possible — should match Adaptive 5→8 (+5071) at lower
-# CPU cost on saturated Mac Mini. Worth testing as the floor for deep param.
-# Image: italovinicius18/rinha-2026-api:v2-adaptive (NPROBE_DEEP env).
+# Variant cpu v6: PQ-rerank smaller config — NPROBE=8, RERANK_N=100.
+# Faster than np5's np=12 N=200 but accuracy is borderline (1 FP + 2 FN local
+# at np=8 N=50; should be 0/1 at N=100). Tests if a smaller PQ search wins on
+# Mac Mini by maximizing CPU savings even at slight accuracy cost.
+# Image: italovinicius18/rinha-2026-api:v5-pq-rerank.
 # Total budget: haproxy 0.15 + data-prep 0.05 + 2×api 0.40 = 1.00 CPU / 350 MB.
 
 services:
   data-prep:
-    image: italovinicius18/rinha-2026-data-prep:v1
+    image: italovinicius18/rinha-2026-data-prep:v5-pq-rerank
     volumes:
       - index-data:/shared
     deploy:
@@ -20,12 +19,12 @@ services:
           memory: "25MB"
 
   api1:
-    image: italovinicius18/rinha-2026-api:v2-adaptive
+    image: italovinicius18/rinha-2026-api:v5-pq-rerank
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
-      NPROBE: "5"
-      NPROBE_DEEP: "6"
+      NPROBE: "8"
+      RERANK_N: "100"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
@@ -41,12 +40,12 @@ services:
           memory: "155MB"
 
   api2:
-    image: italovinicius18/rinha-2026-api:v2-adaptive
+    image: italovinicius18/rinha-2026-api:v5-pq-rerank
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
-      NPROBE: "5"
-      NPROBE_DEEP: "6"
+      NPROBE: "8"
+      RERANK_N: "100"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
