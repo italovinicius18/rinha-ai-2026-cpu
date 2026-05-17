@@ -1,15 +1,16 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v6: PQ-rerank smaller config — NPROBE=8, RERANK_N=100.
-# Faster than np5's np=12 N=200 but accuracy is borderline (1 FP + 2 FN local
-# at np=8 N=50; should be 0/1 at N=100). Tests if a smaller PQ search wins on
-# Mac Mini by maximizing CPU savings even at slight accuracy cost.
-# Image: italovinicius18/rinha-2026-api:v5-pq-rerank.
+# Variant cpu v7: C=2048 IVF-F32 + Adaptive NPROBE=8 fast + NPROBE_DEEP=20.
+# 4× more centroids than canonical (2048 vs 512) → each cluster ~1465 vecs
+# (vs 5859). Fast pass: 8 × 1465 = ~12k vec scan (vs canonical 5 × 5859 = 29k).
+# Middle ground between canonical C=512 and np5 C=4096.
+# Centroid scan: 2048 × 14 × 4 = 112KB (fits L2; canonical 28KB fits L1).
+# Image: italovinicius18/rinha-2026-data-prep:v8-c2048 (C=2048 F32 index).
 # Total budget: haproxy 0.15 + data-prep 0.05 + 2×api 0.40 = 1.00 CPU / 350 MB.
 
 services:
   data-prep:
-    image: italovinicius18/rinha-2026-data-prep:v5-pq-rerank
+    image: italovinicius18/rinha-2026-data-prep:v8-c2048
     volumes:
       - index-data:/shared
     deploy:
@@ -19,12 +20,12 @@ services:
           memory: "25MB"
 
   api1:
-    image: italovinicius18/rinha-2026-api:v5-pq-rerank
+    image: italovinicius18/rinha-2026-api:v2-adaptive
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
       NPROBE: "8"
-      RERANK_N: "100"
+      NPROBE_DEEP: "20"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
@@ -40,12 +41,12 @@ services:
           memory: "155MB"
 
   api2:
-    image: italovinicius18/rinha-2026-api:v5-pq-rerank
+    image: italovinicius18/rinha-2026-api:v2-adaptive
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
       NPROBE: "8"
-      RERANK_N: "100"
+      NPROBE_DEEP: "20"
       GOMAXPROCS: "1"
       GOGC: "200"
     volumes:
