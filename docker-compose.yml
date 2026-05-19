@@ -1,6 +1,5 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v8: canonical C=512 Adaptive 5→10 with GOGC=off + GOMEMLIMIT=130MiB.
 # Same binary as canonical (v2-adaptive). Only the Go runtime memory policy
 # changes: no periodic heap-growth GC; GC only triggers if RSS approaches limit.
 # Hypothesis: removes periodic GC pauses → lower p99 tail jitter.
@@ -26,8 +25,7 @@ services:
       NPROBE: "5"
       NPROBE_DEEP: "10"
       GOMAXPROCS: "1"
-      GOGC: "off"
-      GOMEMLIMIT: "130MiB"
+      GOGC: "200"
     volumes:
       - index-data:/data:ro
     depends_on:
@@ -48,8 +46,7 @@ services:
       NPROBE: "5"
       NPROBE_DEEP: "10"
       GOMAXPROCS: "1"
-      GOGC: "off"
-      GOMEMLIMIT: "130MiB"
+      GOGC: "200"
     volumes:
       - index-data:/data:ro
     depends_on:
