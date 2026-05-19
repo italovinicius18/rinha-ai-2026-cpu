@@ -1,16 +1,15 @@
 name: rinha-2026-italo-cpu
 
-# Variant cpu v7: C=2048 IVF-F32 + Adaptive NPROBE=8 fast + NPROBE_DEEP=20.
-# 4× more centroids than canonical (2048 vs 512) → each cluster ~1465 vecs
-# (vs 5859). Fast pass: 8 × 1465 = ~12k vec scan (vs canonical 5 × 5859 = 29k).
-# Middle ground between canonical C=512 and np5 C=4096.
-# Centroid scan: 2048 × 14 × 4 = 112KB (fits L2; canonical 28KB fits L1).
-# Image: italovinicius18/rinha-2026-data-prep:v8-c2048 (C=2048 F32 index).
+# Variant cpu v8: canonical C=512 Adaptive 5→10 with GOGC=off + GOMEMLIMIT=130MiB.
+# Same binary as canonical (v2-adaptive). Only the Go runtime memory policy
+# changes: no periodic heap-growth GC; GC only triggers if RSS approaches limit.
+# Hypothesis: removes periodic GC pauses → lower p99 tail jitter.
+# Local WSL 4-way bench: +5666 p99 1.42ms (vs canonical +5619 p99 1.59ms) = +47 / -0.17ms.
 # Total budget: haproxy 0.15 + data-prep 0.05 + 2×api 0.40 = 1.00 CPU / 350 MB.
 
 services:
   data-prep:
-    image: italovinicius18/rinha-2026-data-prep:v8-c2048
+    image: italovinicius18/rinha-2026-data-prep:v1
     volumes:
       - index-data:/shared
     deploy:
@@ -24,10 +23,11 @@ services:
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
-      NPROBE: "8"
-      NPROBE_DEEP: "20"
+      NPROBE: "5"
+      NPROBE_DEEP: "10"
       GOMAXPROCS: "1"
-      GOGC: "200"
+      GOGC: "off"
+      GOMEMLIMIT: "130MiB"
     volumes:
       - index-data:/data:ro
     depends_on:
@@ -45,10 +45,11 @@ services:
     environment:
       LISTEN_ADDR: ":8080"
       INDEX_PATH: "/data/index.bin"
-      NPROBE: "8"
-      NPROBE_DEEP: "20"
+      NPROBE: "5"
+      NPROBE_DEEP: "10"
       GOMAXPROCS: "1"
-      GOGC: "200"
+      GOGC: "off"
+      GOMEMLIMIT: "130MiB"
     volumes:
       - index-data:/data:ro
     depends_on:
